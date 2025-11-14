@@ -14,11 +14,17 @@
 package command
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/pingcap/tiup/pkg/cluster/spec"
+	logprinter "github.com/pingcap/tiup/pkg/logger/printer"
 	"github.com/pingcap/tiup/pkg/utils"
 	"github.com/spf13/cobra"
+
+	"github.com/pingcap/tiup/components/cluster/precheck"
 )
 
 func newUpgradeCmd() *cobra.Command {
@@ -26,21 +32,58 @@ func newUpgradeCmd() *cobra.Command {
 	ignoreVersionCheck := false
 	var tidbVer, tikvVer, pdVer, tsoVer, schedulingVer, tiflashVer, kvcdcVer, dashboardVer, cdcVer, alertmanagerVer, nodeExporterVer, blackboxExporterVer, tiproxyVer string
 	var restartTimeout time.Duration
+	var precheckOnlyFlag bool
+	var withoutPrecheckFlag bool
+	var precheckOutputFormat string
+	var precheckOutputFile string
+	logger := logprinter.NewLogger("")
+
+	// clusterUpgradeFunc enables injection in tests to observe whether an upgrade would execute
+	// clusterUpgradeFunc default binding
+	if clusterUpgradeFunc == nil {
+		clusterUpgradeFunc = func(clusterName, version string, compVers map[string]string, skip bool, offline bool, ignoreVersion bool, restartTimeout time.Duration) error {
+			return cm.Upgrade(clusterName, version, compVers, gOpt, skip, offline, ignoreVersion, restartTimeout)
+		}
+	}
 
 	cmd := &cobra.Command{
-		Use:   "upgrade <cluster-name> <version>",
+		Use:   "upgrade [precheck] <cluster-name> <version>",
 		Short: "Upgrade a specified TiDB cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			precheckFmt, err := precheck.ParseOutputFormat(precheckOutputFormat)
+			if err != nil {
+				return err
+			}
+
+			if len(args) > 0 && args[0] == "precheck" {
+				if len(args) != 3 {
+					return cmd.Help()
+				}
+				clusterName := args[1]
+				targetRaw := args[2]
+				version, err := utils.FmtVer(targetRaw)
+				if err != nil {
+					return err
+				}
+				if _, err := runParameterPrecheck(context.Background(), clusterName, version, logger, precheckFmt, precheckOutputFile); err != nil {
+					return err
+				}
+				logger.Infof("Precheck complete. This was a dry run; no upgrade performed.")
+				return nil
+			}
+
 			if len(args) != 2 {
 				return cmd.Help()
 			}
 
 			clusterName := args[0]
-			version, err := utils.FmtVer(args[1])
+			targetRaw := args[1]
+			version, err := utils.FmtVer(targetRaw)
 			if err != nil {
 				return err
 			}
 
+			// Build component version overrides (may be empty strings -> follow cluster version)
 			componentVersions := map[string]string{
 				spec.ComponentDashboard:        dashboardVer,
 				spec.ComponentAlertmanager:     alertmanagerVer,
@@ -57,7 +100,39 @@ func newUpgradeCmd() *cobra.Command {
 				spec.ComponentNodeExporter:     nodeExporterVer,
 			}
 
-			return cm.Upgrade(clusterName, version, componentVersions, gOpt, skipConfirm, offlineMode, ignoreVersionCheck, restartTimeout)
+			// Mode 3: skip precheck entirely
+			if withoutPrecheckFlag {
+				logger.Warnf("Skipping parameter precheck (--without-precheck). Proceeding at your own risk.")
+				return clusterUpgradeFunc(clusterName, version, componentVersions, skipConfirm, offlineMode, ignoreVersionCheck, restartTimeout)
+			}
+
+			_, preErr := runParameterPrecheck(context.Background(), clusterName, version, logger, precheckFmt, precheckOutputFile)
+			if preErr != nil {
+				logger.Errorf("parameter precheck failed: %v", preErr)
+				if precheckOnlyFlag { // in planning mode fail fast
+					return preErr
+				}
+				// allow user to continue despite failure only in execute mode prompt
+			}
+
+			if precheckOnlyFlag { // Mode 1: planning – exit after report
+				logger.Infof("Precheck complete. No upgrade performed (planning mode).")
+				return nil
+			}
+
+			// Mode 2: execute – ask for confirmation unless skipConfirm already set
+			if !skipConfirm {
+				proceed, askErr := precheck.AskForUserConfirmation()
+				if askErr != nil {
+					return askErr
+				}
+				if !proceed {
+					logger.Infof("Aborting upgrade per user response.")
+					return nil
+				}
+			}
+
+			return clusterUpgradeFunc(clusterName, version, componentVersions, skipConfirm, offlineMode, ignoreVersionCheck, restartTimeout)
 		},
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			switch len(args) {
@@ -68,6 +143,7 @@ func newUpgradeCmd() *cobra.Command {
 			}
 		},
 	}
+
 	cmd.Flags().BoolVar(&gOpt.Force, "force", false, "Force upgrade without transferring PD leader")
 	cmd.Flags().Uint64Var(&gOpt.APITimeout, "transfer-timeout", 600, "Timeout in seconds when transferring PD and TiKV store leaders, also for TiCDC drain one capture")
 	cmd.Flags().BoolVarP(&gOpt.IgnoreConfigCheck, "ignore-config-check", "", false, "Ignore the config check result")
@@ -90,5 +166,59 @@ func newUpgradeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&blackboxExporterVer, "blackbox-exporter-version", "", "Fix the version of blackbox-exporter and no longer follows the cluster version.")
 	cmd.Flags().StringVar(&tiproxyVer, "tiproxy-version", "", "Fix the version of tiproxy and no longer follows the cluster version.")
 	cmd.Flags().DurationVar(&restartTimeout, "restart-timeout", time.Second*0, "Timeout for after upgrade prompt")
+	cmd.Flags().BoolVar(&precheckOnlyFlag, "precheck", false, "Run parameter precheck and exit without upgrading")
+	cmd.Flags().BoolVar(&withoutPrecheckFlag, "without-precheck", false, "Skip parameter precheck (dangerous)")
+	cmd.Flags().StringVar(&precheckOutputFormat, "precheck-output", "text", "Format for the precheck report (text, markdown, html)")
+	cmd.Flags().StringVar(&precheckOutputFile, "precheck-output-file", "", "Write the precheck report to a file instead of stdout")
 	return cmd
 }
+
+func runParameterPrecheck(ctx context.Context, clusterName, targetVersion string, logger *logprinter.Logger, format precheck.OutputFormat, outputPath string) (*precheck.RiskReport, error) {
+	logger.Infof("Running parameter precheck...")
+	sourceVersion := "(unknown)"
+	metadata, err := clusterMetadataFunc(clusterName)
+	if err != nil {
+		logger.Warnf("unable to read current cluster metadata: %v", err)
+	} else {
+		sourceVersion = metadata.Version
+	}
+
+	report, runErr := precheck.RunPrecheckForUpgrade(ctx, sourceVersion, targetVersion)
+	if report != nil {
+		if err := outputPrecheckReport(report, format, outputPath, logger); err != nil && runErr == nil {
+			runErr = err
+		}
+	}
+	return report, runErr
+}
+
+func outputPrecheckReport(report *precheck.RiskReport, format precheck.OutputFormat, outputPath string, logger *logprinter.Logger) error {
+	if format == precheck.OutputText && outputPath == "" {
+		precheck.PrintReportToConsole(report)
+		return nil
+	}
+
+	payload, err := precheck.RenderReport(report, format)
+	if err != nil {
+		return err
+	}
+
+	if outputPath == "" {
+		if _, err := fmt.Fprintln(os.Stdout, string(payload)); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := os.WriteFile(outputPath, payload, 0o644); err != nil {
+		return err
+	}
+	logger.Infof("Precheck report saved to %s", outputPath)
+	return nil
+}
+
+// clusterUpgradeFunc is a package-level variable so tests can replace it.
+var (
+	clusterUpgradeFunc  func(clusterName, version string, compVers map[string]string, skip bool, offline bool, ignoreVersion bool, restartTimeout time.Duration) error
+	clusterMetadataFunc = spec.ClusterMetadata
+)

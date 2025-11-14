@@ -1,0 +1,263 @@
+package precheck
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"html/template"
+	"strings"
+)
+
+// OutputFormat enumerates supported render formats.
+type OutputFormat string
+
+const (
+	OutputText     OutputFormat = "text"
+	OutputMarkdown OutputFormat = "markdown"
+	OutputHTML     OutputFormat = "html"
+)
+
+// ParseOutputFormat normalizes a user-provided format string.
+func ParseOutputFormat(s string) (OutputFormat, error) {
+	normalized := strings.ToLower(strings.TrimSpace(s))
+	switch normalized {
+	case "", "text":
+		return OutputText, nil
+	case "md", "markdown":
+		return OutputMarkdown, nil
+	case "html", "htm":
+		return OutputHTML, nil
+	default:
+		return "", fmt.Errorf("unknown precheck output format %q", s)
+	}
+}
+
+// RenderReport formats the report according to the requested format and returns
+// the rendered bytes. For text output the caller may prefer PrintReportToConsole.
+func RenderReport(r *RiskReport, format OutputFormat) ([]byte, error) {
+	switch format {
+	case OutputText:
+		var buf bytes.Buffer
+		renderTextReport(&buf, r)
+		return buf.Bytes(), nil
+	case OutputMarkdown:
+		return []byte(renderMarkdownReport(r)), nil
+	case OutputHTML:
+		return renderHTMLReport(r)
+	default:
+		return nil, errors.New("unsupported precheck output format")
+	}
+}
+
+type markdownSection struct {
+	Title string
+	Items []RiskItem
+}
+
+func renderMarkdownReport(r *RiskReport) string {
+	builder := &strings.Builder{}
+	builder.WriteString("# TiDB Upgrade Precheck Report\n\n")
+	builder.WriteString(fmt.Sprintf("- Source Version: %s\n", nullIfEmpty(r.SourceVersion)))
+	builder.WriteString(fmt.Sprintf("- Target Version: %s\n", nullIfEmpty(r.TargetVersion)))
+	summary := r.Summary()
+	builder.WriteString(fmt.Sprintf("- Total Risks: %d (High: %d, Medium: %d, Low: %d)\n\n", summary.Total, summary.High, summary.Medium, summary.Low))
+
+	sections := []markdownSection{
+		{Title: "High Risk", Items: r.High},
+		{Title: "Medium Risk", Items: r.Medium},
+		{Title: "Low Risk", Items: r.Low},
+	}
+
+	for _, section := range sections {
+		builder.WriteString("## " + section.Title + "\n\n")
+		if len(section.Items) == 0 {
+			builder.WriteString("No items.\n\n")
+			continue
+		}
+		builder.WriteString("| Component | Parameter | Current -> New | Impact | Suggestion | Notes |\n")
+		builder.WriteString("| --- | --- | --- | --- | --- | --- |\n")
+		for _, item := range section.Items {
+			component := markdownEscape(formatComponent(item))
+			parameter := markdownEscape(fallbackString(item.Parameter))
+			current := markdownEscape(formatCurrent(item))
+			impact := markdownEscape(fallbackString(item.Impact))
+			suggestion := markdownEscape(fallbackString(item.Suggestion))
+			notes := markdownEscape(formatNotes(item))
+			builder.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s | %s |\n", component, parameter, current, impact, suggestion, notes))
+		}
+		builder.WriteString("\n")
+	}
+
+	return builder.String()
+}
+
+func markdownEscape(s string) string {
+	if s == "" {
+		return "-"
+	}
+	escaped := strings.ReplaceAll(s, "|", "\\|")
+	escaped = strings.ReplaceAll(escaped, "\n", "<br>")
+	return escaped
+}
+
+type htmlSection struct {
+	Title string
+	Items []htmlItem
+}
+
+type htmlItem struct {
+	Component  string
+	Parameter  string
+	Current    string
+	Impact     string
+	Suggestion string
+	Notes      string
+}
+
+type htmlReportData struct {
+	SourceVersion string
+	TargetVersion string
+	Summary       SummaryInfo
+	Sections      []htmlSection
+}
+
+const htmlTemplateText = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TiDB Upgrade Precheck Report</title>
+<style>
+body { font-family: Arial, Helvetica, sans-serif; margin: 24px; }
+h1 { font-size: 24px; margin-bottom: 12px; }
+h2 { font-size: 20px; margin-top: 28px; }
+table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; }
+th { background-color: #f5f5f5; }
+.summary { margin-bottom: 16px; }
+.note { color: #555555; font-size: 12px; margin-top: 32px; }
+</style>
+</head>
+<body>
+<h1>TiDB Upgrade Precheck Report</h1>
+<div class="summary">
+  <p><strong>Source Version:</strong> {{.SourceVersion}}</p>
+  <p><strong>Target Version:</strong> {{.TargetVersion}}</p>
+  <p><strong>Total Risks:</strong> {{.Summary.Total}} (High: {{.Summary.High}}, Medium: {{.Summary.Medium}}, Low: {{.Summary.Low}})</p>
+</div>
+{{range .Sections}}
+<h2>{{.Title}}</h2>
+{{if .Items}}
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Parameter</th>
+      <th>Current -&gt; New</th>
+      <th>Impact</th>
+      <th>Suggestion</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Items}}
+    <tr>
+      <td>{{.Component}}</td>
+      <td>{{.Parameter}}</td>
+      <td>{{.Current}}</td>
+      <td>{{.Impact}}</td>
+      <td>{{.Suggestion}}</td>
+      <td>{{.Notes}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>No {{.Title}} items.</p>
+{{end}}
+{{end}}
+<p class="note">Generated by tiup cluster upgrade precheck.</p>
+</body>
+</html>
+`
+
+func renderHTMLReport(r *RiskReport) ([]byte, error) {
+	tpl, err := template.New("precheck-report").Parse(htmlTemplateText)
+	if err != nil {
+		return nil, err
+	}
+	data := htmlReportData{
+		SourceVersion: nullIfEmpty(r.SourceVersion),
+		TargetVersion: nullIfEmpty(r.TargetVersion),
+		Summary:       r.Summary(),
+		Sections: []htmlSection{
+			{Title: "High Risk", Items: mapHTMLItems(r.High)},
+			{Title: "Medium Risk", Items: mapHTMLItems(r.Medium)},
+			{Title: "Low Risk", Items: mapHTMLItems(r.Low)},
+		},
+	}
+	var buf bytes.Buffer
+	if err := tpl.Execute(&buf, data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func mapHTMLItems(items []RiskItem) []htmlItem {
+	result := make([]htmlItem, 0, len(items))
+	for _, item := range items {
+		result = append(result, htmlItem{
+			Component:  formatComponent(item),
+			Parameter:  fallbackString(item.Parameter),
+			Current:    formatCurrent(item),
+			Impact:     fallbackString(item.Impact),
+			Suggestion: fallbackString(item.Suggestion),
+			Notes:      formatNotes(item),
+		})
+	}
+	return result
+}
+
+func formatComponent(item RiskItem) string {
+	component := fallbackString(item.Component)
+	if item.Scope != "" {
+		if component == "-" {
+			return item.Scope
+		}
+		return fmt.Sprintf("%s (%s)", component, item.Scope)
+	}
+	return component
+}
+
+func formatCurrent(item RiskItem) string {
+	current := fallbackString(item.Current)
+	if item.NewDefault != "" {
+		if current == "-" {
+			current = item.NewDefault
+		} else {
+			current = fmt.Sprintf("%s -> %s", current, item.NewDefault)
+		}
+	}
+	return current
+}
+
+func formatNotes(item RiskItem) string {
+	notes := make([]string, 0, 3)
+	if item.Reason != "" {
+		notes = append(notes, "Reason: "+item.Reason)
+	}
+	if item.Comments != "" {
+		notes = append(notes, "Comments: "+item.Comments)
+	}
+	if len(notes) == 0 {
+		return "-"
+	}
+	return strings.Join(notes, "; ")
+}
+
+func fallbackString(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return "-"
+	}
+	return trimmed
+}

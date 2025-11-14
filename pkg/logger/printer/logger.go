@@ -38,6 +38,10 @@ type Logger struct {
 	stderr io.Writer
 }
 
+func (l *Logger) Info(s string) {
+	panic("unimplemented")
+}
+
 // NewLogger creates a Logger with default settings
 func NewLogger(m string) *Logger {
 	return &Logger{
