@@ -33,6 +33,7 @@ require (
 	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86
 	github.com/pingcap/fn v1.0.0
 	github.com/pingcap/kvproto v0.0.0-20230331024443-349815129e6d
+	github.com/pingcap/tidb-upgrade-precheck v0.0.0
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.42.0
 	github.com/prometheus/prom2json v1.3.2
@@ -141,3 +142,5 @@ tool (
 	github.com/mgechev/revive
 	github.com/pingcap/failpoint/failpoint-ctl
 )
+
+replace github.com/pingcap/tidb-upgrade-precheck => ../tidb-upgrade-precheck

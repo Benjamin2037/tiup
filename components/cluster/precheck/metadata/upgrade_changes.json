@@ -1,0 +1,951 @@
+{
+    "generated_at": "2025-11-13T10:08:33Z",
+    "versions": [
+        {
+            "version": 2,
+            "changes": [
+                {
+                    "from_version": 1,
+                    "to_version": 2,
+                    "kind": "sysvar",
+                    "target": "tidb_distsql_scan_concurrency",
+                    "default_value": "15",
+                    "force": false,
+                    "summary": "Ensure tidb_distsql_scan_concurrency exists with the legacy default",
+                    "details": "Inserts the sysvar when upgrading clusters that predate it so DistSQL concurrency remains unchanged.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 3,
+            "changes": [
+                {
+                    "from_version": 2,
+                    "to_version": 3,
+                    "kind": "sysvar",
+                    "target": "tx_read_only",
+                    "default_value": "0",
+                    "force": true,
+                    "summary": "Reset tx_read_only to 0 to match TiDB semantics",
+                    "details": "Older clusters could leave the MySQL compatibility variable enabled; this upgrade clears it.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 25,
+            "changes": [
+                {
+                    "from_version": 24,
+                    "to_version": 25,
+                    "kind": "sysvar",
+                    "target": "tidb_max_chunk_size",
+                    "default_value": "32",
+                    "force": true,
+                    "summary": "Raise tidb_max_chunk_size to the new minimum chunk size",
+                    "details": "Values below the new floor of 32 are bumped so execution keeps working with larger chunks.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 35,
+            "changes": [
+                {
+                    "from_version": 34,
+                    "to_version": 35,
+                    "kind": "sysvar",
+                    "target": "tidb_backoff_weight",
+                    "force": true,
+                    "summary": "Rename tidb_back_off_weight entries to tidb_backoff_weight",
+                    "details": "Aligns stored sysvar names with the renamed identifier introduced in v3.0.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 37,
+            "changes": [
+                {
+                    "from_version": 36,
+                    "to_version": 37,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_window_function",
+                    "default_value": "0",
+                    "force": false,
+                    "summary": "Seed tidb_enable_window_function with its pre-4.0 default",
+                    "details": "Clusters predating window function support receive an explicit OFF record if it was absent.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 43,
+            "changes": [
+                {
+                    "from_version": 42,
+                    "to_version": 43,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_stmt_summary",
+                    "default_value": "ON",
+                    "force": true,
+                    "summary": "Backfill blank tidb_enable_stmt_summary values with the ON/OFF default",
+                    "details": "Some upgrades left the variable as an empty string; this normalizes it so statement summary works.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 42,
+                    "to_version": 43,
+                    "kind": "sysvar",
+                    "target": "tidb_stmt_summary_internal_query",
+                    "default_value": "OFF",
+                    "force": true,
+                    "summary": "Backfill blank tidb_stmt_summary_internal_query values",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 42,
+                    "to_version": 43,
+                    "kind": "sysvar",
+                    "target": "tidb_stmt_summary_refresh_interval",
+                    "default_value": "1800",
+                    "force": true,
+                    "summary": "Backfill blank tidb_stmt_summary_refresh_interval values",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 42,
+                    "to_version": 43,
+                    "kind": "sysvar",
+                    "target": "tidb_stmt_summary_history_size",
+                    "default_value": "24",
+                    "force": true,
+                    "summary": "Backfill blank tidb_stmt_summary_history_size values",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 42,
+                    "to_version": 43,
+                    "kind": "sysvar",
+                    "target": "tidb_stmt_summary_max_stmt_count",
+                    "default_value": "3000",
+                    "force": true,
+                    "summary": "Backfill blank tidb_stmt_summary_max_stmt_count values",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 42,
+                    "to_version": 43,
+                    "kind": "sysvar",
+                    "target": "tidb_stmt_summary_max_sql_length",
+                    "default_value": "32768",
+                    "force": true,
+                    "summary": "Backfill blank tidb_stmt_summary_max_sql_length values",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 44,
+            "changes": [
+                {
+                    "from_version": 43,
+                    "to_version": 44,
+                    "kind": "sysvar",
+                    "target": "tidb_isolation_read_engines",
+                    "force": true,
+                    "summary": "Remove deprecated tidb_isolation_read_engines entries",
+                    "details": "The legacy variable is deleted to avoid masking the new replica read settings.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 53,
+            "changes": [
+                {
+                    "from_version": 52,
+                    "to_version": 53,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_strict_double_type_check",
+                    "default_value": "0",
+                    "force": false,
+                    "summary": "Insert tidb_enable_strict_double_type_check with its default",
+                    "details": "Introduces the compatibility guard without overriding user-configured values.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 55,
+            "changes": [
+                {
+                    "from_version": 54,
+                    "to_version": 55,
+                    "kind": "sysvar",
+                    "target": "tidb_index_lookup_concurrency",
+                    "default_value": "-1",
+                    "force": true,
+                    "summary": "Normalize deprecated execution concurrency variables",
+                    "details": "When every related variable still held its legacy default, TiDB rewrites it to -1 to defer to auto-tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 54,
+                    "to_version": 55,
+                    "kind": "sysvar",
+                    "target": "tidb_index_lookup_join_concurrency",
+                    "default_value": "-1",
+                    "force": true,
+                    "summary": "Normalize deprecated execution concurrency variables",
+                    "details": "When every related variable still held its legacy default, TiDB rewrites it to -1 to defer to auto-tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 54,
+                    "to_version": 55,
+                    "kind": "sysvar",
+                    "target": "tidb_hashagg_final_concurrency",
+                    "default_value": "-1",
+                    "force": true,
+                    "summary": "Normalize deprecated execution concurrency variables",
+                    "details": "When every related variable still held its legacy default, TiDB rewrites it to -1 to defer to auto-tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 54,
+                    "to_version": 55,
+                    "kind": "sysvar",
+                    "target": "tidb_hashagg_partial_concurrency",
+                    "default_value": "-1",
+                    "force": true,
+                    "summary": "Normalize deprecated execution concurrency variables",
+                    "details": "When every related variable still held its legacy default, TiDB rewrites it to -1 to defer to auto-tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 54,
+                    "to_version": 55,
+                    "kind": "sysvar",
+                    "target": "tidb_window_concurrency",
+                    "default_value": "-1",
+                    "force": true,
+                    "summary": "Normalize deprecated execution concurrency variables",
+                    "details": "When every related variable still held its legacy default, TiDB rewrites it to -1 to defer to auto-tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 54,
+                    "to_version": 55,
+                    "kind": "sysvar",
+                    "target": "tidb_projection_concurrency",
+                    "default_value": "-1",
+                    "force": true,
+                    "summary": "Normalize deprecated execution concurrency variables",
+                    "details": "When every related variable still held its legacy default, TiDB rewrites it to -1 to defer to auto-tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 54,
+                    "to_version": 55,
+                    "kind": "sysvar",
+                    "target": "tidb_hash_join_concurrency",
+                    "default_value": "-1",
+                    "force": true,
+                    "summary": "Normalize deprecated execution concurrency variables",
+                    "details": "When every related variable still held its legacy default, TiDB rewrites it to -1 to defer to auto-tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 66,
+            "changes": [
+                {
+                    "from_version": 65,
+                    "to_version": 66,
+                    "kind": "sysvar",
+                    "target": "tidb_track_aggregate_memory_usage",
+                    "default_value": "ON",
+                    "force": true,
+                    "summary": "Enable aggregate memory usage tracking to match the new default in v6.6",
+                    "details": "Increases observability for aggregate operators and may add slight CPU overhead.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 68,
+            "changes": [
+                {
+                    "from_version": 67,
+                    "to_version": 68,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_clustered_index",
+                    "force": true,
+                    "summary": "Drop tidb_enable_clustered_index records forced to OFF",
+                    "details": "Deleting lingering OFF entries allows the upgraded cluster to adopt the clustered-index default.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 71,
+            "changes": [
+                {
+                    "from_version": 70,
+                    "to_version": 71,
+                    "kind": "sysvar",
+                    "target": "tidb_multi_statement_mode",
+                    "default_value": "OFF",
+                    "force": true,
+                    "summary": "Retire WARN mode for tidb_multi_statement_mode",
+                    "details": "Clusters running with WARN fall back to OFF to reflect the simplified multi-statement policy.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 74,
+            "changes": [
+                {
+                    "from_version": 73,
+                    "to_version": 74,
+                    "kind": "sysvar",
+                    "target": "tidb_stmt_summary_max_stmt_count",
+                    "default_value": "3000",
+                    "force": true,
+                    "summary": "Increase tidb_stmt_summary_max_stmt_count to the new default",
+                    "details": "Bumps the cap for statement summary entries when it was still the legacy 200 limit.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 80,
+            "changes": [
+                {
+                    "from_version": 79,
+                    "to_version": 80,
+                    "kind": "sysvar",
+                    "target": "tidb_analyze_version",
+                    "default_value": "1",
+                    "force": false,
+                    "summary": "Record tidb_analyze_version for clusters predating the variable",
+                    "details": "Initializes the sysvar with version 1 so analyze semantics stay consistent after upgrade.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 81,
+            "changes": [
+                {
+                    "from_version": 80,
+                    "to_version": 81,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_index_merge",
+                    "default_value": "OFF",
+                    "force": false,
+                    "summary": "Default tidb_enable_index_merge to OFF for pre-4.0 clusters",
+                    "details": "Keeps existing plans stable by storing the previous behavior when the variable did not exist.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 90,
+            "changes": [
+                {
+                    "from_version": 89,
+                    "to_version": 90,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_batch_dml",
+                    "force": false,
+                    "summary": "Import enable-batch-dml config into tidb_enable_batch_dml",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                },
+                {
+                    "from_version": 89,
+                    "to_version": 90,
+                    "kind": "sysvar",
+                    "target": "tidb_mem_quota_query",
+                    "force": false,
+                    "summary": "Import mem-quota-query config into tidb_mem_quota_query",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                },
+                {
+                    "from_version": 89,
+                    "to_version": 90,
+                    "kind": "sysvar",
+                    "target": "tidb_query_log_max_len",
+                    "force": false,
+                    "summary": "Import query-log-max-len config into tidb_query_log_max_len",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                },
+                {
+                    "from_version": 89,
+                    "to_version": 90,
+                    "kind": "sysvar",
+                    "target": "tidb_committer_concurrency",
+                    "force": false,
+                    "summary": "Import committer-concurrency config into tidb_committer_concurrency",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                },
+                {
+                    "from_version": 89,
+                    "to_version": 90,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_auto_analyze",
+                    "force": false,
+                    "summary": "Import run-auto-analyze config into tidb_enable_auto_analyze",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                },
+                {
+                    "from_version": 89,
+                    "to_version": 90,
+                    "kind": "sysvar",
+                    "target": "tidb_mem_oom_action",
+                    "force": false,
+                    "summary": "Import oom-action config into tidb_mem_oom_action",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                }
+            ]
+        },
+        {
+            "version": 91,
+            "changes": [
+                {
+                    "from_version": 90,
+                    "to_version": 91,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_prepared_plan_cache",
+                    "force": false,
+                    "summary": "Import prepared-plan-cache.enable config into tidb_enable_prepared_plan_cache",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                },
+                {
+                    "from_version": 90,
+                    "to_version": 91,
+                    "kind": "sysvar",
+                    "target": "tidb_prepared_plan_cache_size",
+                    "force": false,
+                    "summary": "Import prepared-plan-cache.capacity config into tidb_prepared_plan_cache_size",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                },
+                {
+                    "from_version": 90,
+                    "to_version": 91,
+                    "kind": "sysvar",
+                    "target": "tidb_prepared_plan_cache_memory_guard_ratio",
+                    "force": false,
+                    "summary": "Import prepared-plan-cache.memory-guard-ratio config",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                }
+            ]
+        },
+        {
+            "version": 93,
+            "changes": [
+                {
+                    "from_version": 92,
+                    "to_version": 93,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_tmp_storage_on_oom",
+                    "force": false,
+                    "summary": "Import oom-use-tmp-storage config into tidb_enable_tmp_storage_on_oom",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                }
+            ]
+        },
+        {
+            "version": 97,
+            "changes": [
+                {
+                    "from_version": 96,
+                    "to_version": 97,
+                    "kind": "sysvar",
+                    "target": "tidb_opt_range_max_size",
+                    "default_value": "0",
+                    "force": false,
+                    "summary": "Backfill tidb_opt_range_max_size for legacy clusters",
+                    "details": "Stores the pre-existing behavior so optimizer heuristics stay unchanged when the sysvar was absent.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 99,
+            "changes": [
+                {
+                    "from_version": 98,
+                    "to_version": 99,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_metadata_lock",
+                    "default_value": "1",
+                    "force": true,
+                    "summary": "Enable metadata locking by default",
+                    "details": "Pre-upgrade versions lacked the sysvar or used 0; TiDB now forces it to 1 to prevent DDL anomalies.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 100,
+            "changes": [
+                {
+                    "from_version": 99,
+                    "to_version": 100,
+                    "kind": "sysvar",
+                    "target": "tidb_server_memory_limit",
+                    "force": false,
+                    "summary": "Import performance.server-memory-quota config into tidb_server_memory_limit",
+                    "details": "A missing sysvar inherits the tidb.toml value so behavior matches the old configuration.",
+                    "scope": "global",
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Value imported from tidb.toml"
+                    ]
+                }
+            ]
+        },
+        {
+            "version": 105,
+            "changes": [
+                {
+                    "from_version": 104,
+                    "to_version": 105,
+                    "kind": "sysvar",
+                    "target": "tidb_cost_model_version",
+                    "default_value": "1",
+                    "force": false,
+                    "summary": "Seed tidb_cost_model_version with the legacy cost model",
+                    "details": "Ensures upgraded clusters stay on cost model v1 unless users opt in to newer behavior.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 109,
+            "changes": [
+                {
+                    "from_version": 108,
+                    "to_version": 109,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_gc_aware_memory_track",
+                    "default_value": "0",
+                    "force": true,
+                    "summary": "Force-disable tidb_enable_gc_aware_memory_track for 6.2-6.4 upgrades",
+                    "details": "Sets the variable to OFF to match the v6.5 behavior and avoid unexpected memory tracking costs.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 110,
+            "changes": [
+                {
+                    "from_version": 109,
+                    "to_version": 110,
+                    "kind": "sysvar",
+                    "target": "tidb_stats_load_pseudo_timeout",
+                    "default_value": "1",
+                    "force": true,
+                    "summary": "Enable tidb_stats_load_pseudo_timeout by default",
+                    "details": "For clusters predating the variable we force the new default timeout to keep statistics loading predictable.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 133,
+            "changes": [
+                {
+                    "from_version": 132,
+                    "to_version": 133,
+                    "kind": "sysvar",
+                    "target": "tidb_server_memory_limit",
+                    "default_value": "80%",
+                    "force": true,
+                    "summary": "Replace 0 values for tidb_server_memory_limit with the computed default",
+                    "details": "Old upgrades stored 0 to mean unlimited; we rewrite it so memory protection remains active.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 134,
+            "changes": [
+                {
+                    "from_version": 133,
+                    "to_version": 134,
+                    "kind": "sysvar",
+                    "target": "foreign_key_checks",
+                    "default_value": "ON",
+                    "force": true,
+                    "summary": "Enable foreign_key_checks globally after GA",
+                    "details": "Replaces legacy OFF values to align with the new foreign key enforcement behavior.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 133,
+                    "to_version": 134,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_foreign_key",
+                    "default_value": "ON",
+                    "force": true,
+                    "summary": "Enable tidb_enable_foreign_key globally after GA",
+                    "details": "Replaces legacy OFF values to align with the new foreign key enforcement behavior.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 133,
+                    "to_version": 134,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_historical_stats",
+                    "default_value": "ON",
+                    "force": true,
+                    "summary": "Enable tidb_enable_historical_stats by default",
+                    "details": "Ensures historical statistics capture is active immediately after upgrade.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 133,
+                    "to_version": 134,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_plan_replayer_capture",
+                    "default_value": "ON",
+                    "force": true,
+                    "summary": "Enable tidb_enable_plan_replayer_capture by default",
+                    "details": "Ensures plan replayer capture collects diagnostics unless administrators disable it.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 133,
+                    "to_version": 134,
+                    "kind": "sysvar",
+                    "target": "tidb_store_batch_size",
+                    "default_value": "4",
+                    "force": true,
+                    "summary": "Normalize tidb_store_batch_size from 0 to the new default",
+                    "details": "A stored 0 now maps to the auto-tuned default batch size of 4.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 135,
+            "changes": [
+                {
+                    "from_version": 134,
+                    "to_version": 135,
+                    "kind": "sysvar",
+                    "target": "tidb_opt_advanced_join_hint",
+                    "default_value": "OFF",
+                    "force": false,
+                    "summary": "Backfill tidb_opt_advanced_join_hint with OFF",
+                    "details": "Keeps pre-7.0 clusters using the legacy join hint behavior until they opt in.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 138,
+            "changes": [
+                {
+                    "from_version": 137,
+                    "to_version": 138,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_null_aware_anti_join",
+                    "default_value": "ON",
+                    "force": true,
+                    "summary": "Enable tidb_enable_null_aware_anti_join globally",
+                    "details": "Makes the optimizer use null-aware anti-joins by default after upgrade.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 141,
+            "changes": [
+                {
+                    "from_version": 140,
+                    "to_version": 141,
+                    "kind": "sysvar",
+                    "target": "tidb_session_plan_cache_size",
+                    "force": false,
+                    "summary": "Seed tidb_session_plan_cache_size from tidb_prepared_plan_cache_size",
+                    "details": "Copies the existing prepared plan cache size into the session-level limit when the row was missing.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 140,
+                    "to_version": 141,
+                    "kind": "sysvar",
+                    "target": "tidb_load_based_replica_read_threshold",
+                    "default_value": "1s",
+                    "force": true,
+                    "summary": "Reset tidb_load_based_replica_read_threshold to the new default",
+                    "details": "The variable now uses a literal threshold of 4 instead of 0 to reduce noisy replica selection.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 142,
+            "changes": [
+                {
+                    "from_version": 141,
+                    "to_version": 142,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_non_prepared_plan_cache",
+                    "default_value": "OFF",
+                    "force": false,
+                    "summary": "Backfill tidb_enable_non_prepared_plan_cache with OFF",
+                    "details": "Matches the opt-in rollout plan for the non-prepared plan cache feature.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 144,
+            "changes": [
+                {
+                    "from_version": 143,
+                    "to_version": 144,
+                    "kind": "sysvar",
+                    "target": "tidb_plan_cache_invalidation_on_fresh_stats",
+                    "default_value": "OFF",
+                    "force": false,
+                    "summary": "Backfill tidb_plan_cache_invalidation_on_fresh_stats with OFF",
+                    "details": "Keeps plan cache behavior stable for clusters that predate the knob.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 177,
+            "changes": [
+                {
+                    "from_version": 176,
+                    "to_version": 177,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_async_merge_global_stats",
+                    "default_value": "OFF",
+                    "force": true,
+                    "summary": "Force-disable tidb_enable_async_merge_global_stats after framework redesign",
+                    "details": "Upgrades from v7.4 may leave this enabled; TiDB switches it off to avoid inconsistent statistics.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 191,
+            "changes": [
+                {
+                    "from_version": 190,
+                    "to_version": 191,
+                    "kind": "sysvar",
+                    "target": "tidb_txn_mode",
+                    "default_value": "optimistic",
+                    "force": false,
+                    "summary": "Insert tidb_txn_mode with the optimistic default",
+                    "details": "Ensures clusters without an explicit txn mode keep operating in optimistic mode after upgrade.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 209,
+            "changes": [
+                {
+                    "from_version": 208,
+                    "to_version": 209,
+                    "kind": "sysvar",
+                    "target": "tidb_resource_control_strict_mode",
+                    "default_value": "OFF",
+                    "force": false,
+                    "summary": "Backfill tidb_resource_control_strict_mode with OFF",
+                    "details": "Leaves strict mode disabled until administrators opt in.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 210,
+            "changes": [
+                {
+                    "from_version": 209,
+                    "to_version": 210,
+                    "kind": "sysvar",
+                    "target": "tidb_analyze_column_options",
+                    "default_value": "ALL",
+                    "force": false,
+                    "summary": "Default tidb_analyze_column_options to ALL",
+                    "details": "Preserves the legacy behavior where analyze operated on all columns.",
+                    "scope": "global",
+                    "risk_level": "info"
+                },
+                {
+                    "from_version": 209,
+                    "to_version": 210,
+                    "kind": "sysvar",
+                    "target": "tidb_opt_projection_push_down",
+                    "default_value": "OFF",
+                    "force": false,
+                    "summary": "Backfill tidb_opt_projection_push_down with OFF",
+                    "details": "Maintains compatibility for clusters that predate projection push-down tuning.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 215,
+            "changes": [
+                {
+                    "from_version": 214,
+                    "to_version": 215,
+                    "kind": "sysvar",
+                    "target": "tidb_enable_inl_join_inner_multi_pattern",
+                    "default_value": "OFF",
+                    "force": false,
+                    "summary": "Backfill tidb_enable_inl_join_inner_multi_pattern with OFF",
+                    "details": "Keeps index nested loop join heuristics unchanged for upgraded clusters.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 216,
+            "changes": [
+                {
+                    "from_version": 215,
+                    "to_version": 216,
+                    "kind": "sysvar",
+                    "target": "tidb_scatter_region",
+                    "force": true,
+                    "summary": "Normalize tidb_scatter_region values",
+                    "details": "Converts deprecated ON/OFF strings to the new semantics (table or empty string).",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        },
+        {
+            "version": 217,
+            "changes": [
+                {
+                    "from_version": 216,
+                    "to_version": 217,
+                    "kind": "sysvar",
+                    "target": "tidb_schema_cache_size",
+                    "default_value": "0",
+                    "force": false,
+                    "summary": "Backfill tidb_schema_cache_size with the default",
+                    "details": "Stores the previous behavior so schema cache sizing stays consistent post-upgrade.",
+                    "scope": "global",
+                    "risk_level": "info"
+                }
+            ]
+        }
+    ]
+}

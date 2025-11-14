@@ -260,21 +260,40 @@ The upgrade command parameters are as follows:
 
 ```bash''
 Usage:
-  tiup cluster upgrade <cluster-name> <version> [flags]
+  tiup cluster upgrade [precheck] <cluster-name> <version> [flags]
 
 Flags:
-      --force                   forces escalation without transfer leader (dangerous operation)
+    --force                   forces escalation without transfer leader (dangerous operation)
   -h, --help                    help manual
-      --transfer-timeout int    transfer leader's timeout
+  --precheck                run parameter precheck and exit without upgrading
+  --precheck-output string  format for the precheck report (text, markdown, html) (default "text")
+  --precheck-output-file string   write the precheck report to a file instead of stdout
+    --transfer-timeout int    transfer leader's timeout
+    --without-precheck        skip parameter precheck (dangerous)
 
 Global Flags:
       --ssh-timeout int     SSH connection timeout
   -y, --yes                 Skip all confirmation steps.
 ````
 
-For example, to upgrade a cluster to v4.0.0-rc, you need only one command:
+#### Parameter precheck modes
+
+- `tiup cluster upgrade precheck <cluster-name> <version>` – run the TiDB parameter and configuration audit without performing the upgrade. The command prints the detailed report and exits with a non-zero status when blockers are detected.
+- `tiup cluster upgrade --precheck <cluster-name> <version>` – run the same audit, show the report, and stop before executing the upgrade. This is convenient when you prefer flag-based workflows.
+- `tiup cluster upgrade --without-precheck <cluster-name> <version>` – skip the audit entirely (not recommended unless you know the risks).
+
+> **Note:** The precheck engine now consumes the TiDB upgrade metadata bundle shipped with TiUP. The report highlights forced rewrites of TiDB global system variables so you can plan corrective actions before the upgrade.
+
+You can also customise the report format:
+
+- `--precheck-output markdown` emits a Markdown table (ideal for sharing in review docs or IM). Combine it with `--precheck-output-file report.md` to save the result directly.
+- `--precheck-output html --precheck-output-file report.html` generates a standalone web page with simple styling.
+
+For example, to upgrade a cluster to v4.0.0-rc after confirming the precheck output, you can run:
 
 ```bash
+$ tiup cluster upgrade --precheck tidb-test v4.0.0-rc
+# review the report
 $ tiup cluster upgrade tidb-test v4.0.0-rc
 ````
 
