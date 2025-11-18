@@ -15,12 +15,15 @@ package command
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pingcap/tiup/pkg/cluster/spec"
 	logprinter "github.com/pingcap/tiup/pkg/logger/printer"
+	"github.com/pingcap/tiup/pkg/tui"
 	"github.com/pingcap/tiup/pkg/utils"
 	"github.com/spf13/cobra"
 
@@ -36,6 +39,10 @@ func newUpgradeCmd() *cobra.Command {
 	var withoutPrecheckFlag bool
 	var precheckOutputFormat string
 	var precheckOutputFile string
+	var precheckTiDBUser string
+	var precheckTiDBPassword string
+	var precheckTiDBPasswordFile string
+	var precheckTiDBPromptPassword bool
 	logger := logprinter.NewLogger("")
 
 	// clusterUpgradeFunc enables injection in tests to observe whether an upgrade would execute
@@ -55,6 +62,10 @@ func newUpgradeCmd() *cobra.Command {
 				return err
 			}
 
+			resolveCreds := func() (tidbSQLCredentials, error) {
+				return buildPrecheckTiDBCredentials(precheckTiDBUser, precheckTiDBPassword, precheckTiDBPasswordFile, precheckTiDBPromptPassword)
+			}
+
 			if len(args) > 0 && args[0] == "precheck" {
 				if len(args) != 3 {
 					return cmd.Help()
@@ -65,7 +76,11 @@ func newUpgradeCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if _, err := runParameterPrecheck(context.Background(), clusterName, version, logger, precheckFmt, precheckOutputFile); err != nil {
+				creds, err := resolveCreds()
+				if err != nil {
+					return err
+				}
+				if _, err := runParameterPrecheck(context.Background(), clusterName, version, logger, precheckFmt, precheckOutputFile, creds); err != nil {
 					return err
 				}
 				logger.Infof("Precheck complete. This was a dry run; no upgrade performed.")
@@ -106,7 +121,12 @@ func newUpgradeCmd() *cobra.Command {
 				return clusterUpgradeFunc(clusterName, version, componentVersions, skipConfirm, offlineMode, ignoreVersionCheck, restartTimeout)
 			}
 
-			_, preErr := runParameterPrecheck(context.Background(), clusterName, version, logger, precheckFmt, precheckOutputFile)
+			creds, err := resolveCreds()
+			if err != nil {
+				return err
+			}
+
+			_, preErr := runParameterPrecheck(context.Background(), clusterName, version, logger, precheckFmt, precheckOutputFile, creds)
 			if preErr != nil {
 				logger.Errorf("parameter precheck failed: %v", preErr)
 				if precheckOnlyFlag { // in planning mode fail fast
@@ -170,26 +190,62 @@ func newUpgradeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&withoutPrecheckFlag, "without-precheck", false, "Skip parameter precheck (dangerous)")
 	cmd.Flags().StringVar(&precheckOutputFormat, "precheck-output", "text", "Format for the precheck report (text, markdown, html)")
 	cmd.Flags().StringVar(&precheckOutputFile, "precheck-output-file", "", "Write the precheck report to a file instead of stdout")
+	cmd.Flags().StringVar(&precheckTiDBUser, "precheck-tidb-user", "root", "TiDB SQL user for snapshot collection during precheck")
+	cmd.Flags().StringVar(&precheckTiDBPassword, "precheck-tidb-password", "", "TiDB SQL password for snapshot collection during precheck")
+	cmd.Flags().StringVar(&precheckTiDBPasswordFile, "precheck-tidb-password-file", "", "Path to a file containing the TiDB SQL password for precheck snapshot collection")
+	cmd.Flags().BoolVar(&precheckTiDBPromptPassword, "precheck-tidb-password-prompt", false, "Prompt for the TiDB SQL password for precheck snapshot collection")
 	return cmd
 }
 
-func runParameterPrecheck(ctx context.Context, clusterName, targetVersion string, logger *logprinter.Logger, format precheck.OutputFormat, outputPath string) (*precheck.RiskReport, error) {
+func runParameterPrecheck(ctx context.Context, clusterName, targetVersion string, logger *logprinter.Logger, format precheck.OutputFormat, outputPath string, creds tidbSQLCredentials) (*precheck.RiskReport, error) {
 	logger.Infof("Running parameter precheck...")
 	sourceVersion := "(unknown)"
+	runOptions := make([]precheck.RunOption, 0, 2)
 	metadata, err := clusterMetadataFunc(clusterName)
 	if err != nil {
 		logger.Warnf("unable to read current cluster metadata: %v", err)
 	} else {
 		sourceVersion = metadata.Version
+		if snapshot, snapErr := collectClusterSnapshot(ctx, clusterName, metadata, creds); snapErr != nil {
+			logger.Warnf("unable to collect cluster snapshot: %v", snapErr)
+		} else if snapshot != nil {
+			runOptions = append(runOptions, precheck.WithSnapshot(snapshot))
+		}
 	}
 
-	report, runErr := precheck.RunPrecheckForUpgrade(ctx, sourceVersion, targetVersion)
+	report, runErr := precheck.RunPrecheckForUpgrade(ctx, sourceVersion, targetVersion, runOptions...)
 	if report != nil {
 		if err := outputPrecheckReport(report, format, outputPath, logger); err != nil && runErr == nil {
 			runErr = err
 		}
 	}
 	return report, runErr
+}
+
+func buildPrecheckTiDBCredentials(user, password, passwordFile string, prompt bool) (tidbSQLCredentials, error) {
+	if password != "" && passwordFile != "" {
+		return tidbSQLCredentials{}, errors.New("cannot use both --precheck-tidb-password and --precheck-tidb-password-file")
+	}
+	if prompt && passwordFile != "" {
+		return tidbSQLCredentials{}, errors.New("cannot combine --precheck-tidb-password-prompt with --precheck-tidb-password-file")
+	}
+	resolved := strings.TrimSpace(password)
+	if passwordFile != "" {
+		data, err := os.ReadFile(passwordFile)
+		if err != nil {
+			return tidbSQLCredentials{}, err
+		}
+		resolved = strings.TrimSpace(string(data))
+	} else if prompt {
+		resolved = strings.TrimSpace(tui.PromptForPassword("Enter TiDB SQL password: "))
+	}
+
+	username := strings.TrimSpace(user)
+	if username == "" {
+		username = "root"
+	}
+
+	return tidbSQLCredentials{user: username, password: resolved}, nil
 }
 
 func outputPrecheckReport(report *precheck.RiskReport, format precheck.OutputFormat, outputPath string, logger *logprinter.Logger) error {

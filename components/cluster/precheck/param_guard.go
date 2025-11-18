@@ -12,10 +12,15 @@ import (
 // RunPrecheckForUpgrade is the entry point used by tiup before an upgrade.
 // It currently only passes source/target versions; collectors for live
 // cluster variables and component configs will extend the Input later.
-func RunPrecheckForUpgrade(ctx context.Context, sourceVersion, targetVersion string) (*RiskReport, error) {
+func RunPrecheckForUpgrade(ctx context.Context, sourceVersion, targetVersion string, opts ...RunOption) (*RiskReport, error) {
 	in := Input{
 		SourceVersion: sourceVersion,
 		TargetVersion: targetVersion,
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&in)
+		}
 	}
 	return Run(ctx, in)
 }
@@ -65,7 +70,6 @@ func OverrideIO(out io.Writer, in io.Reader) func() {
 }
 
 func renderTextReport(w io.Writer, r *RiskReport) {
-	fmt.Fprintln(w, "Running parameter precheck...")
 	fmt.Fprintf(w, "  Source Version: %s\n", nullIfEmpty(r.SourceVersion))
 	fmt.Fprintf(w, "  Target Version: %s\n\n", nullIfEmpty(r.TargetVersion))
 

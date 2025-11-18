@@ -37,7 +37,8 @@ func TestRunMissingTargetVersionWarning(t *testing.T) {
 
 	var warningFound bool
 	for _, item := range report.Medium {
-		if strings.Contains(item.Impact, "目标版本为空") {
+		impact := strings.ToLower(item.Impact)
+		if strings.Contains(impact, "target version is empty") || strings.Contains(impact, "目标版本为空") {
 			warningFound = true
 			require.Equal(t, RiskMedium, item.Level)
 			break

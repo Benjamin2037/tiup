@@ -58,9 +58,27 @@ func (r *RiskReport) Summary() SummaryInfo {
 // Input is the engine input. It will be extended with live cluster
 // topology, system variables, component configs, TLS info, etc.
 type Input struct {
-	SourceVersion string
-	TargetVersion string
-	// TODO: Add system variables, component configs, topology, TLS, etc.
+	SourceVersion   string
+	TargetVersion   string
+	GlobalVariables map[string]string
+	Config          map[string]any
+}
+
+func (in *Input) applySnapshot(snapshot *Snapshot) {
+	if snapshot == nil {
+		return
+	}
+	if len(snapshot.GlobalVariables) > 0 {
+		if in.GlobalVariables == nil {
+			in.GlobalVariables = make(map[string]string, len(snapshot.GlobalVariables))
+		}
+		for k, v := range snapshot.GlobalVariables {
+			in.GlobalVariables[k] = v
+		}
+	}
+	if len(snapshot.Config) > 0 {
+		in.Config = mergeConfig(in.Config, snapshot.Config)
+	}
 }
 
 // Run is the core entry of the parameter guard engine (placeholder impl).
@@ -72,6 +90,16 @@ func Run(ctx context.Context, in Input) (*RiskReport, error) {
 		TargetVersion: strings.TrimSpace(in.TargetVersion),
 	}
 
+	if len(in.GlobalVariables) > 0 {
+		snapshot.GlobalSysVars = make(map[string]string, len(in.GlobalVariables))
+		for k, v := range in.GlobalVariables {
+			snapshot.GlobalSysVars[k] = v
+		}
+	}
+	if len(in.Config) > 0 {
+		snapshot.Config = cloneAnyMap(in.Config)
+	}
+
 	ruleset := []prechecklib.Rule{
 		rules.NewTargetVersionOrderRule(),
 	}
@@ -79,6 +107,9 @@ func Run(ctx context.Context, in Input) (*RiskReport, error) {
 	catalog, err := loadEmbeddedCatalog()
 	if err != nil {
 		return nil, fmt.Errorf("load upgrade metadata: %w", err)
+	}
+	if rule := rules.NewConfiguredGlobalSysvarsRule(catalog); rule != nil {
+		ruleset = append(ruleset, rule)
 	}
 	if rule := rules.NewForcedGlobalSysvarsRule(catalog); rule != nil {
 		ruleset = append(ruleset, rule)
@@ -128,8 +159,16 @@ func convertReportItem(item prechecklib.ReportItem) RiskItem {
 
 	if meta, ok := item.Metadata.(map[string]any); ok {
 		risk.Parameter = trimString(stringFromMeta(meta, "target"))
-		risk.NewDefault = trimString(stringFromMeta(meta, "default_value"))
+		if newDefault := trimString(stringFromMeta(meta, "default_value")); newDefault != "" {
+			risk.NewDefault = newDefault
+		}
 		risk.Scope = trimString(stringFromMeta(meta, "scope"))
+		if current := trimString(stringFromMeta(meta, "current_value")); current != "" {
+			risk.Current = current
+		}
+		if baseline := trimString(stringFromMeta(meta, "baseline_value")); baseline != "" && risk.NewDefault == "" {
+			risk.NewDefault = baseline
+		}
 		if reason := trimString(stringFromMeta(meta, "reason")); reason != "" {
 			risk.Reason = reason
 		}
@@ -204,4 +243,24 @@ func stringFromMeta(meta map[string]any, key string) string {
 
 func trimString(s string) string {
 	return strings.TrimSpace(s)
+}
+
+// RunOption configures optional inputs for the precheck run.
+type RunOption func(*Input)
+
+// WithGlobalVariables injects the captured global system variables into the run snapshot.
+func WithGlobalVariables(vars map[string]string) RunOption {
+	normalized := make(map[string]string, len(vars))
+	for k, v := range vars {
+		normalized[strings.TrimSpace(strings.ToLower(k))] = strings.TrimSpace(v)
+	}
+	return WithSnapshot(&Snapshot{GlobalVariables: normalized})
+}
+
+// WithSnapshot merges the provided snapshot into the engine input.
+func WithSnapshot(snapshot *Snapshot) RunOption {
+	clone := snapshot.Clone()
+	return func(in *Input) {
+		in.applySnapshot(clone)
+	}
 }

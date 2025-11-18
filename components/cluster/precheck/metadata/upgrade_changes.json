@@ -922,11 +922,16 @@
                     "to_version": 216,
                     "kind": "sysvar",
                     "target": "tidb_scatter_region",
+                    "default_value": "(empty string)",
                     "force": true,
-                    "summary": "Normalize tidb_scatter_region values",
-                    "details": "Converts deprecated ON/OFF strings to the new semantics (table or empty string).",
+                    "summary": "Normalize tidb_scatter_region to the new string enum",
+                    "details": "Before: ON/OFF toggled table-level scattering on DDL jobs. After: the variable accepts \"\", \"table\", or \"global\" where \"\" disables scattering, \"table\" scatters newly created tables, and \"global\" requests PD to scatter the full key range.",
                     "scope": "global",
-                    "risk_level": "info"
+                    "risk_level": "info",
+                    "optional_hints": [
+                        "Legacy values: ON/OFF",
+                        "New values: \"\", \"table\", \"global\""
+                    ]
                 }
             ]
         },
@@ -939,11 +944,34 @@
                     "kind": "sysvar",
                     "target": "tidb_schema_cache_size",
                     "default_value": "0",
-                    "force": false,
-                    "summary": "Backfill tidb_schema_cache_size with the default",
-                    "details": "Stores the previous behavior so schema cache sizing stays consistent post-upgrade.",
+                    "force": true,
+                    "summary": "Keep tidb_schema_cache_size disabled for upgraded clusters",
+                    "details": "Upgrades to bootstrap 217 explicitly retain tidb_schema_cache_size at 0 so schema caching stays off, while fresh v8.5 clusters start with 512MiB enabled by default.",
                     "scope": "global",
-                    "risk_level": "info"
+                    "risk_level": "warning",
+                    "optional_hints": [
+                        "Plan to size tidb_schema_cache_size manually after upgrade if you want to enable the schema cache."
+                    ]
+                }
+            ]
+        },
+        {
+            "version": 218,
+            "changes": [
+                {
+                    "from_version": 217,
+                    "to_version": 218,
+                    "kind": "sysvar",
+                    "target": "tidb_analyze_distsql_scan_concurrency",
+                    "default_value": "4",
+                    "force": true,
+                    "summary": "Introduce dedicated ANALYZE DistSQL concurrency",
+                    "details": "Upgrades seed the new tidb_analyze_distsql_scan_concurrency global variable with the default of 4 while tidb_distsql_scan_concurrency continues to govern non-ANALYZE workloads.",
+                    "scope": "global",
+                    "risk_level": "warning",
+                    "optional_hints": [
+                        "Review ANALYZE runtime after upgrade; adjust tidb_analyze_distsql_scan_concurrency if necessary."
+                    ]
                 }
             ]
         }
