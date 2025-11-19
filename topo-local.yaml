@@ -1,0 +1,13 @@
+global:
+  user: benjamin2037
+  ssh_port: 22
+  deploy_dir: /Users/benjamin2037/tidb-deploy
+  data_dir: /Users/benjamin2037/tidb-data
+server_configs: {}
+tidb_servers:
+  - host: 127.0.0.1
+    port: 4000
+pd_servers:
+  - host: 127.0.0.1
+tikv_servers:
+  - host: 127.0.0.1

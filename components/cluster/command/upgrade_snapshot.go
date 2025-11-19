@@ -347,7 +347,18 @@ func (f *tidbSnapshotFetcher) fetchClusterConfigFromEndpoint(ctx context.Context
 
 	queryCtx, cancel := context.WithTimeout(ctx, snapshotQueryTimeout)
 	defer cancel()
-	rows, err := db.QueryContext(queryCtx, "SELECT type, instance, `key`, value, default_value FROM information_schema.cluster_config")
+
+	const clusterConfigQueryWithDefault = "SELECT type, instance, `key`, value, default_value FROM information_schema.cluster_config"
+	const clusterConfigQueryLegacy = "SELECT type, instance, `key`, value FROM information_schema.cluster_config"
+
+	rows, err := db.QueryContext(queryCtx, clusterConfigQueryWithDefault)
+	legacyQuery := false
+	if err != nil {
+		if myErr, ok := err.(*mysql.MySQLError); ok && myErr.Number == 1054 {
+			legacyQuery = true
+			rows, err = db.QueryContext(queryCtx, clusterConfigQueryLegacy)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +369,12 @@ func (f *tidbSnapshotFetcher) fetchClusterConfigFromEndpoint(ctx context.Context
 
 	for rows.Next() {
 		var component, instance, key, value, defaultValue string
-		if err := rows.Scan(&component, &instance, &key, &value, &defaultValue); err != nil {
+		if legacyQuery {
+			if err := rows.Scan(&component, &instance, &key, &value); err != nil {
+				return nil, err
+			}
+			defaultValue = ""
+		} else if err := rows.Scan(&component, &instance, &key, &value, &defaultValue); err != nil {
 			return nil, err
 		}
 
