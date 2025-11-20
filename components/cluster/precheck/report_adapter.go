@@ -11,10 +11,21 @@ import (
 
 // ToUnifiedReport converts a tiup-cluster RiskReport to tidb-upgrade-precheck/pkg/report.Report
 func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string) *report.Report {
+	// Only count true UserSet (Low/INFO) as audits
+	var audits []report.AuditItem
+	for _, item := range r.Low {
+		audits = append(audits, report.AuditItem{
+			Component: item.Component,
+			Parameter: item.Parameter,
+			Current:   item.Current,
+			Target:    item.NewDefault,
+			Status:    "User Custom",
+		})
+	}
 	summary := map[report.RiskLevel]int{
 		report.RiskHigh:   len(r.High),
 		report.RiskMedium: len(r.Medium),
-		report.RiskInfo:   len(r.Low), // Map Low to Info
+		report.RiskInfo:   len(audits), // Only count actual audits
 	}
 	var risks []report.RiskItem
 	for _, item := range r.High {
@@ -31,7 +42,7 @@ func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string) *report.Rep
 		UpgradePath: upgradePath,
 		Summary:     summary,
 		Risks:       risks,
-		Audits:      nil, // Not available in old RiskReport
+		Audits:      audits,
 		GeneratedAt: time.Now().Format(time.RFC3339),
 	}
 }
