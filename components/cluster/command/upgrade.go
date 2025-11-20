@@ -254,8 +254,8 @@ func buildPrecheckTiDBCredentials(user, password, passwordFile string, prompt bo
 func outputPrecheckReport(report *precheck.RiskReport, format precheck.OutputFormat, outputPath string, logger *logprinter.Logger) error {
 	// Build upgrade path string
 	upgradePath := report.SourceVersion + " -> " + report.TargetVersion
-	// Convert to unified report structure
-	unified := precheck.ToUnifiedReport(report, "CLUSTER", upgradePath)
+	// Convert to unified report structure (with bootstrap info)
+	unified := precheck.ToUnifiedReport(report, "CLUSTER", upgradePath, report.SourceVersion, report.TargetVersion)
 	var out string
 	var err error
 	switch format {

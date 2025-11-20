@@ -4,18 +4,22 @@
 package precheck
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/pingcap/tidb-upgrade-precheck/knowledge"
 	report "github.com/pingcap/tidb-upgrade-precheck/pkg/report"
 )
 
 // ToUnifiedReport converts a tiup-cluster RiskReport to tidb-upgrade-precheck/pkg/report.Report
-func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string) *report.Report {
+// ToUnifiedReport converts a tiup-cluster RiskReport to tidb-upgrade-precheck/pkg/report.Report
+// upgradePath: e.g. "v7.5.1 -> v8.5.3"
+func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string, sourceVersion, targetVersion string) *report.Report {
 	// Only count true UserSet (Low/INFO) as audits
 	var audits []report.AuditItem
 	for _, item := range r.Low {
-		// 只统计用户主动修改过的参数，且参数名不能为空
-		if item.Parameter == "" || item.Current == item.NewDefault {
+		// Only count parameters explicitly set by user (UserSet == true)
+		if item.Parameter == "" || !item.UserSet {
 			continue
 		}
 		audits = append(audits, report.AuditItem{
@@ -29,7 +33,7 @@ func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string) *report.Rep
 	summary := map[report.RiskLevel]int{
 		report.RiskHigh:   len(r.High),
 		report.RiskMedium: len(r.Medium),
-		report.RiskInfo:   len(audits), // 只统计真正 UserSet
+		report.RiskInfo:   len(audits), // Only count true UserSet
 	}
 	var risks []report.RiskItem
 	for _, item := range r.High {
@@ -41,9 +45,18 @@ func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string) *report.Rep
 	for _, item := range r.Low {
 		risks = append(risks, convertRiskItem(item, report.RiskInfo))
 	}
+	// Try to get bootstrap version for both source and target
+	var path string
+	srcBV, srcOK, _ := knowledge.BootstrapVersion(sourceVersion)
+	tgtBV, tgtOK, _ := knowledge.BootstrapVersion(targetVersion)
+	if srcOK && tgtOK {
+		path = fmt.Sprintf("%s (Bootstrap: %d) -> %s (Bootstrap: %d)", sourceVersion, srcBV, targetVersion, tgtBV)
+	} else {
+		path = upgradePath
+	}
 	return &report.Report{
 		ClusterName: clusterName,
-		UpgradePath: upgradePath,
+		UpgradePath: path,
 		Summary:     summary,
 		Risks:       risks,
 		Audits:      audits,

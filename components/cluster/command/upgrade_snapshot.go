@@ -40,7 +40,8 @@ func collectClusterSnapshot(ctx context.Context, clusterName string, metadata *s
 	if fetcher, err := newTiDBSnapshotFetcher(clusterName, topology, creds); err != nil {
 		return nil, err
 	} else if fetcher != nil {
-		collectors = append(collectors, precheck.NewGlobalVariablesCollector(fetcher))
+		// TODO: fetch oldDefaults from knowledge base or config, here use nil for compatibility
+		collectors = append(collectors, precheck.NewGlobalVariablesCollectorWithDefaults(fetcher, nil))
 		collectors = append(collectors, precheck.NewClusterConfigCollector(fetcher))
 	}
 

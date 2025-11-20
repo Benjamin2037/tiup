@@ -34,6 +34,7 @@ type RiskItem struct {
 	Suggestion string
 	Reason     string
 	Comments   string // optional R&D comments for additional context
+	UserSet    bool   // true if parameter is explicitly set by user
 }
 
 // RiskReport aggregates all risks found during the precheck.
@@ -63,7 +64,7 @@ func (r *RiskReport) Summary() SummaryInfo {
 type Input struct {
 	SourceVersion   string
 	TargetVersion   string
-	GlobalVariables map[string]string
+	GlobalVariables map[string]GlobalVariable
 	Config          map[string]any
 }
 
@@ -73,7 +74,7 @@ func (in *Input) applySnapshot(snapshot *Snapshot) {
 	}
 	if len(snapshot.GlobalVariables) > 0 {
 		if in.GlobalVariables == nil {
-			in.GlobalVariables = make(map[string]string, len(snapshot.GlobalVariables))
+			in.GlobalVariables = make(map[string]GlobalVariable, len(snapshot.GlobalVariables))
 		}
 		for k, v := range snapshot.GlobalVariables {
 			in.GlobalVariables[k] = v
@@ -96,7 +97,7 @@ func Run(ctx context.Context, in Input) (*RiskReport, error) {
 	if len(in.GlobalVariables) > 0 {
 		snapshot.GlobalSysVars = make(map[string]string, len(in.GlobalVariables))
 		for k, v := range in.GlobalVariables {
-			snapshot.GlobalSysVars[k] = v
+			snapshot.GlobalSysVars[k] = v.Value
 		}
 	}
 	if len(in.Config) > 0 {
@@ -252,10 +253,10 @@ func trimString(s string) string {
 type RunOption func(*Input)
 
 // WithGlobalVariables injects the captured global system variables into the run snapshot.
-func WithGlobalVariables(vars map[string]string) RunOption {
-	normalized := make(map[string]string, len(vars))
+func WithGlobalVariables(vars map[string]GlobalVariable) RunOption {
+	normalized := make(map[string]GlobalVariable, len(vars))
 	for k, v := range vars {
-		normalized[strings.TrimSpace(strings.ToLower(k))] = strings.TrimSpace(v)
+		normalized[strings.TrimSpace(strings.ToLower(k))] = v
 	}
 	return WithSnapshot(&Snapshot{GlobalVariables: normalized})
 }

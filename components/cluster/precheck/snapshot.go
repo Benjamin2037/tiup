@@ -7,8 +7,16 @@ import (
 
 // Snapshot captures the subset of live cluster state used by the precheck engine.
 // Fields will expand over time as new collectors are introduced.
+// GlobalVariable holds the value and whether it is user-set (differs from old default)
+type GlobalVariable struct {
+	Value   string
+	UserSet bool
+}
+
+// Snapshot captures the subset of live cluster state used by the precheck engine.
+// Fields will expand over time as new collectors are introduced.
 type Snapshot struct {
-	GlobalVariables map[string]string
+	GlobalVariables map[string]GlobalVariable
 	Config          map[string]any
 }
 
@@ -19,7 +27,7 @@ func (s *Snapshot) Clone() *Snapshot {
 	}
 	out := &Snapshot{}
 	if len(s.GlobalVariables) > 0 {
-		out.GlobalVariables = cloneStringMap(s.GlobalVariables)
+		out.GlobalVariables = cloneGlobalVariableMap(s.GlobalVariables)
 	}
 	if len(s.Config) > 0 {
 		out.Config = cloneAnyMap(s.Config)
@@ -72,7 +80,10 @@ func (f GlobalVariableFetcherFunc) FetchGlobalVariables(ctx context.Context) (ma
 
 // NewGlobalVariablesCollector returns a collector that captures the current
 // TiDB global system variables using the provided fetcher.
-func NewGlobalVariablesCollector(fetcher GlobalVariableFetcher) SnapshotCollector {
+// NewGlobalVariablesCollectorWithDefaults returns a collector that captures the current
+// TiDB global system variables and marks UserSet if value differs from old default.
+// Pass in a map of old defaults for comparison.
+func NewGlobalVariablesCollectorWithDefaults(fetcher GlobalVariableFetcher, oldDefaults map[string]string) SnapshotCollector {
 	if fetcher == nil {
 		return SnapshotCollectorFunc(func(context.Context, *Snapshot) error { return nil })
 	}
@@ -85,11 +96,20 @@ func NewGlobalVariablesCollector(fetcher GlobalVariableFetcher) SnapshotCollecto
 			return nil
 		}
 		if snapshot.GlobalVariables == nil {
-			snapshot.GlobalVariables = make(map[string]string, len(vars))
+			snapshot.GlobalVariables = make(map[string]GlobalVariable, len(vars))
 		}
 		for k, v := range vars {
 			key := strings.TrimSpace(strings.ToLower(k))
-			snapshot.GlobalVariables[key] = strings.TrimSpace(v)
+			val := strings.TrimSpace(v)
+			def := ""
+			if oldDefaults != nil {
+				def = strings.TrimSpace(oldDefaults[key])
+			}
+			userSet := def != "" && val != def
+			snapshot.GlobalVariables[key] = GlobalVariable{
+				Value:   val,
+				UserSet: userSet,
+			}
 		}
 		return nil
 	})
@@ -127,11 +147,11 @@ func NewClusterConfigCollector(fetcher ClusterConfigFetcher) SnapshotCollector {
 	})
 }
 
-func cloneStringMap(src map[string]string) map[string]string {
+func cloneGlobalVariableMap(src map[string]GlobalVariable) map[string]GlobalVariable {
 	if len(src) == 0 {
 		return nil
 	}
-	out := make(map[string]string, len(src))
+	out := make(map[string]GlobalVariable, len(src))
 	for k, v := range src {
 		out[k] = v
 	}
