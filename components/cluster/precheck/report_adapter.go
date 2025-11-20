@@ -14,6 +14,10 @@ func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string) *report.Rep
 	// Only count true UserSet (Low/INFO) as audits
 	var audits []report.AuditItem
 	for _, item := range r.Low {
+		// 只统计用户主动修改过的参数，且参数名不能为空
+		if item.Parameter == "" || item.Current == item.NewDefault {
+			continue
+		}
 		audits = append(audits, report.AuditItem{
 			Component: item.Component,
 			Parameter: item.Parameter,
@@ -25,7 +29,7 @@ func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string) *report.Rep
 	summary := map[report.RiskLevel]int{
 		report.RiskHigh:   len(r.High),
 		report.RiskMedium: len(r.Medium),
-		report.RiskInfo:   len(audits), // Only count actual audits
+		report.RiskInfo:   len(audits), // 只统计真正 UserSet
 	}
 	var risks []report.RiskItem
 	for _, item := range r.High {
