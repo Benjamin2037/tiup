@@ -275,26 +275,55 @@ Global Flags:
   -y, --yes                 Skip all confirmation steps.
 ````
 
-#### Parameter precheck modes
 
-- `tiup cluster upgrade precheck <cluster-name> <version>` – run the TiDB parameter and configuration audit without performing the upgrade. The command prints the detailed report and exits with a non-zero status when blockers are detected.
-- `tiup cluster upgrade --precheck <cluster-name> <version>` – run the same audit, show the report, and stop before executing the upgrade. This is convenient when you prefer flag-based workflows.
-- `tiup cluster upgrade --without-precheck <cluster-name> <version>` – skip the audit entirely (not recommended unless you know the risks).
+#### Pre-upgrade Risk Precheck (precheck) Usage Details
 
-> **Note:** The precheck engine now consumes the TiDB upgrade metadata bundle shipped with TiUP. The report highlights forced rewrites of TiDB global system variables so you can plan corrective actions before the upgrade.
+It is recommended to perform parameter and configuration risk scanning before upgrading. Multiple modes and report formats are supported:
 
-You can also customise the report format:
+- `tiup cluster upgrade precheck <cluster-name> <version>`
+  - Only performs the risk precheck, does not upgrade. Returns a non-zero exit code if blockers are found.
+- `tiup cluster upgrade --precheck <cluster-name> <version>`
+  - Outputs the risk report first, then proceeds with upgrade after user confirmation.
+- `tiup cluster upgrade --without-precheck <cluster-name> <version>`
+  - Skips the risk check (not recommended unless you fully understand the risks).
 
-- `--precheck-output markdown` emits a Markdown table (ideal for sharing in review docs or IM). Combine it with `--precheck-output-file report.md` to save the result directly.
-- `--precheck-output html --precheck-output-file report.html` generates a standalone web page with simple styling.
+> **Note:** The precheck engine automatically loads the upgrade metadata bundled with TiUP. The report highlights all forced changes to global system variables so you can plan ahead.
 
-For example, to upgrade a cluster to v4.0.0-rc after confirming the precheck output, you can run:
+##### Report Formats and Output
 
-```bash
-$ tiup cluster upgrade --precheck tidb-test v4.0.0-rc
-# review the report
-$ tiup cluster upgrade tidb-test v4.0.0-rc
-````
+- `--precheck-output text` (default): Terminal-friendly text.
+- `--precheck-output markdown`: Suitable for review or IM sharing, can be saved directly with `--precheck-output-file report.md`.
+- `--precheck-output html`: Generates a standalone web page with styles, use with `--precheck-output-file report.html`.
+
+##### Typical Usage Examples
+
+1. Generate a Markdown risk report only:
+   ```bash
+   tiup cluster upgrade precheck <cluster-name> <target-version> --precheck-output markdown --precheck-output-file report.md
+   ```
+2. Pre-upgrade check with manual confirmation:
+   ```bash
+   tiup cluster upgrade <cluster-name> <target-version> --precheck
+   ```
+3. Skip risk check (not recommended):
+   ```bash
+   tiup cluster upgrade <cluster-name> <target-version> --without-precheck
+   ```
+
+##### Main Parameter Descriptions
+
+- `--precheck-output`: Report format, supports text, markdown, html.
+- `--precheck-output-file`: Report output file path.
+
+##### Typical Scenarios
+
+- Pre-upgrade risk assessment and archiving
+- Integration into automated O&M workflows
+- Change review and compliance traceability
+
+---
+
+For rule extension, custom report templates, or integration into your own system, please refer to the tidb-upgrade-precheck project documentation and source code.
 
 ## Update configuration
 
