@@ -85,7 +85,7 @@ check: fmt lint tidy check-static vet
 
 check-static: tools/bin/golangci-lint
 	@# Target: run the golangci-lint static check tool
-	tools/bin/golangci-lint run --config tools/check/golangci.yaml ./... --timeout=3m --fix || true
+	tools/bin/golangci-lint run --config tools/check/golangci.yaml ./... --timeout=3m --fix
 
 lint:
 	@# Target: run the lint checker revive
