@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	reportpkg "github.com/pingcap/tidb-upgrade-precheck/pkg/report"
+
 	"github.com/pingcap/tiup/pkg/cluster/spec"
 	logprinter "github.com/pingcap/tiup/pkg/logger/printer"
 	"github.com/pingcap/tiup/pkg/tui"
@@ -30,6 +32,7 @@ import (
 	"github.com/pingcap/tiup/components/cluster/precheck"
 )
 
+// 构造升级路径字符串
 func newUpgradeCmd() *cobra.Command {
 	offlineMode := false
 	ignoreVersionCheck := false
@@ -249,27 +252,34 @@ func buildPrecheckTiDBCredentials(user, password, passwordFile string, prompt bo
 }
 
 func outputPrecheckReport(report *precheck.RiskReport, format precheck.OutputFormat, outputPath string, logger *logprinter.Logger) error {
-	if format == precheck.OutputText && outputPath == "" {
-		precheck.PrintReportToConsole(report)
-		return nil
+	// Build upgrade path string
+	upgradePath := report.SourceVersion + " -> " + report.TargetVersion
+	// Convert to unified report structure
+	unified := precheck.ToUnifiedReport(report, "CLUSTER", upgradePath)
+	var out string
+	var err error
+	switch format {
+	case precheck.OutputText:
+		// For text, use the Markdown report (structure, sections, tables, all English)
+		out, err = reportpkg.RenderMarkdownReport(unified)
+	case precheck.OutputMarkdown:
+		out, err = reportpkg.RenderMarkdownReport(unified)
+	case precheck.OutputHTML:
+		out, err = reportpkg.RenderHTMLReport(unified)
+	default:
+		err = fmt.Errorf("unsupported output format: %v", format)
 	}
-
-	payload, err := precheck.RenderReport(report, format)
 	if err != nil {
 		return err
 	}
-
 	if outputPath == "" {
-		if _, err := fmt.Fprintln(os.Stdout, string(payload)); err != nil {
+		fmt.Fprintln(os.Stdout, out)
+	} else {
+		if err := os.WriteFile(outputPath, []byte(out), 0o644); err != nil {
 			return err
 		}
-		return nil
+		logger.Infof("Precheck report saved to %s", outputPath)
 	}
-
-	if err := os.WriteFile(outputPath, payload, 0o644); err != nil {
-		return err
-	}
-	logger.Infof("Precheck report saved to %s", outputPath)
 	return nil
 }
 
