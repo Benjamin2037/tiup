@@ -25,12 +25,12 @@ func RunPrecheckForUpgrade(ctx context.Context, sourceVersion, targetVersion str
 	return Run(ctx, in)
 }
 
-// PrintReportToConsole prints the precheck report to the console.
 var (
 	stdOut io.Writer = os.Stdout
 	stdIn  io.Reader = os.Stdin
 )
 
+// PrintReportToConsole prints the precheck report to the console.
 func PrintReportToConsole(r *RiskReport) {
 	renderTextReport(stdOut, r)
 }

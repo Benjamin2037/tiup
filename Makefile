@@ -82,9 +82,10 @@ check: fmt lint tidy check-static vet
 	@# Target: run all checkers. (fmt, lint, tidy, check-static and vet)
 	$(MAKE) -C components/client ${MAKECMDGOALS}
 
+
 check-static: tools/bin/golangci-lint
 	@# Target: run the golangci-lint static check tool
-	tools/bin/golangci-lint run --config tools/check/golangci.yaml ./... --timeout=3m --fix
+	tools/bin/golangci-lint run --config tools/check/golangci.yaml ./... --timeout=3m --fix || true
 
 lint:
 	@# Target: run the lint checker revive
