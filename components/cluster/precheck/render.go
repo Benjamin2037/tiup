@@ -12,9 +12,12 @@ import (
 type OutputFormat string
 
 const (
-	OutputText     OutputFormat = "text"
+	// OutputText is the text output format for precheck reports.
+	OutputText OutputFormat = "text"
+	// OutputMarkdown is the markdown output format for precheck reports.
 	OutputMarkdown OutputFormat = "markdown"
-	OutputHTML     OutputFormat = "html"
+	// OutputHTML is the HTML output format for precheck reports.
+	OutputHTML OutputFormat = "html"
 )
 
 // ParseOutputFormat normalizes a user-provided format string.

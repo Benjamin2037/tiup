@@ -25,7 +25,7 @@ func RunPrecheckForUpgrade(ctx context.Context, sourceVersion, targetVersion str
 	return Run(ctx, in)
 }
 
-// PrintReportToConsole renders a human-readable risk report to stdout.
+// PrintReportToConsole prints the precheck report to the console.
 var (
 	stdOut io.Writer = os.Stdout
 	stdIn  io.Reader = os.Stdin
@@ -35,9 +35,7 @@ func PrintReportToConsole(r *RiskReport) {
 	renderTextReport(stdOut, r)
 }
 
-// AskForUserConfirmation prompts the operator for confirmation in the
-// default "execute" mode. Returns true to proceed, false to abort.
-
+// AskForUserConfirmation prompts the user for confirmation and returns true if confirmed.
 func AskForUserConfirmation() (bool, error) {
 	reader := bufio.NewReader(stdIn)
 	if _, err := fmt.Fprintf(stdOut, "Do you want to continue with the upgrade? [y/N]: "); err != nil {

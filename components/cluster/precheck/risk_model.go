@@ -13,9 +13,12 @@ import (
 type RiskLevel string
 
 const (
-	RiskHigh   RiskLevel = "HIGH RISK"
+	// RiskHigh indicates a high risk level.
+	RiskHigh RiskLevel = "HIGH RISK"
+	// RiskMedium indicates a medium risk level.
 	RiskMedium RiskLevel = "MEDIUM RISK"
-	RiskLow    RiskLevel = "LOW RISK"
+	// RiskLow indicates a low risk level.
+	RiskLow RiskLevel = "LOW RISK"
 )
 
 // RiskItem describes a single detected risk.
