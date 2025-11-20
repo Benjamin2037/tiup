@@ -5,9 +5,7 @@ import (
 	"strings"
 )
 
-// Snapshot captures the subset of live cluster state used by the precheck engine.
-// Fields will expand over time as new collectors are introduced.
-// GlobalVariable holds the value and whether it is user-set (differs from old default)
+// GlobalVariable is a global system variable and whether it is user-set.
 type GlobalVariable struct {
 	Value   string
 	UserSet bool
@@ -78,11 +76,7 @@ func (f GlobalVariableFetcherFunc) FetchGlobalVariables(ctx context.Context) (ma
 	return f(ctx)
 }
 
-// NewGlobalVariablesCollector returns a collector that captures the current
-// TiDB global system variables using the provided fetcher.
-// NewGlobalVariablesCollectorWithDefaults returns a collector that captures the current
-// TiDB global system variables and marks UserSet if value differs from old default.
-// Pass in a map of old defaults for comparison.
+// NewGlobalVariablesCollectorWithDefaults returns a SnapshotCollector that marks UserSet as true if the value differs from the old default.
 func NewGlobalVariablesCollectorWithDefaults(fetcher GlobalVariableFetcher, oldDefaults map[string]string) SnapshotCollector {
 	if fetcher == nil {
 		return SnapshotCollectorFunc(func(context.Context, *Snapshot) error { return nil })
