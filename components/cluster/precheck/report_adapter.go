@@ -4,10 +4,8 @@
 package precheck
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/pingcap/tidb-upgrade-precheck/knowledge"
 	report "github.com/pingcap/tidb-upgrade-precheck/pkg/report"
 )
 
@@ -45,18 +43,10 @@ func ToUnifiedReport(r *RiskReport, clusterName, upgradePath string, sourceVersi
 	for _, item := range r.Low {
 		risks = append(risks, convertRiskItem(item, report.RiskInfo))
 	}
-	// Try to get bootstrap version for both source and target
-	var path string
-	srcBV, srcOK, _ := knowledge.BootstrapVersion(sourceVersion)
-	tgtBV, tgtOK, _ := knowledge.BootstrapVersion(targetVersion)
-	if srcOK && tgtOK {
-		path = fmt.Sprintf("%s (Bootstrap: %d) -> %s (Bootstrap: %d)", sourceVersion, srcBV, targetVersion, tgtBV)
-	} else {
-		path = upgradePath
-	}
+	// 直接使用 upgradePath 字符串
 	return &report.Report{
 		ClusterName: clusterName,
-		UpgradePath: path,
+		UpgradePath: upgradePath,
 		Summary:     summary,
 		Risks:       risks,
 		Audits:      audits,
