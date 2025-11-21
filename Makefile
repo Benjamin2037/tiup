@@ -44,7 +44,13 @@ default: check build
 include ./tests/Makefile
 
 # Build TiUP and all components
-build: tiup components
+
+build: sync-knowledge tiup components
+
+sync-knowledge:
+	@# 自动同步 tidb-upgrade-precheck/knowledge 到 tiup/knowledge
+	rm -rf knowledge
+	cp -r ../tidb-upgrade-precheck/knowledge ./knowledge
 	@# Target: build tiup and all it's components
 
 components: playground client cluster dm server
