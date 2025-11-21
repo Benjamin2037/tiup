@@ -13,9 +13,18 @@ import (
 // It currently only passes source/target versions; collectors for live
 // cluster variables and component configs will extend the Input later.
 func RunPrecheckForUpgrade(ctx context.Context, sourceVersion, targetVersion string, opts ...RunOption) (*RiskReport, error) {
+	// 加载知识库（defaults/upgrade_logic），如无则自动远程拉取
+	if _, derr := CheckAndLoadDefaults(targetVersion); derr != nil {
+		fmt.Fprintf(os.Stderr, "[WARN] 加载 defaults.json 失败: %v\n", derr)
+	}
+	if _, lerr := CheckAndLoadUpgradeLogic(); lerr != nil {
+		fmt.Fprintf(os.Stderr, "[WARN] 加载 upgrade_logic.json 失败: %v\n", lerr)
+	}
+	// 可将 defaults/logic 注入 Input 或全局，供后续 Run 使用
 	in := Input{
 		SourceVersion: sourceVersion,
 		TargetVersion: targetVersion,
+		// 可扩展: KnowledgeDefaults: defaults, KnowledgeLogic: logic
 	}
 	for _, opt := range opts {
 		if opt != nil {
