@@ -182,6 +182,7 @@ func init() {
 		newTLSCmd(),
 		newMetaCmd(),
 		newRotateSSHCmd(),
+		newHighRiskParamsCmd(),
 	)
 }
 

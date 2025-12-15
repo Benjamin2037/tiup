@@ -1,0 +1,41 @@
+global:
+  user: "tidb"
+  ssh_port: 22
+  deploy_dir: "/tmp/tidb-deploy"
+  data_dir: "/tmp/tidb-data"
+
+pd_servers:
+  - host: 127.0.0.1
+    name: pd1
+    client_port: 2379
+    peer_port: 2380
+
+tidb_servers:
+  - host: 127.0.0.1
+    port: 4000
+    status_port: 10080
+
+tikv_servers:
+  - host: 127.0.0.1
+    port: 20160
+    status_port: 20180
+
+tiflash_servers:
+  - host: 127.0.0.1
+    data_dir: "/tmp/tidb-data/tiflash-9000"
+    tcp_port: 9000
+    http_port: 8123
+    flash_service_port: 3930
+    flash_proxy_port: 20170
+    flash_proxy_status_port: 20292
+    status_port: 8234
+
+# 注意：
+# 1. 只包含核心组件：pd、tidb、tikv、tiflash（用于 E2E 测试已足够）
+# 2. 不包含任何监控组件：
+#    - 不包含 monitoring_servers（node_exporter、blackbox_exporter）
+#    - 不包含 grafana_servers
+#    - 不包含 alertmanager_servers
+# 3. 这样可以避免在 macOS ARM64 平台上遇到监控组件不支持的问题
+# 4. 对于 E2E 测试，核心组件已经足够，不需要监控组件
+# 5. 如果仍遇到监控组件下载错误，请参考"故障排除 - 问题 0"

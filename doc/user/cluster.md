@@ -257,7 +257,7 @@ The rolling upgrade feature leverages TiDB's distributed capabilities to keep th
 
 The upgrade command parameters are as follows:
 
-```bash''
+```bash
 Usage:
   tiup cluster upgrade <cluster-name> <version> [flags]
 
@@ -265,17 +265,39 @@ Flags:
       --force                   forces escalation without transfer leader (dangerous operation)
   -h, --help                    help manual
       --transfer-timeout int    transfer leader's timeout
+      --precheck                run parameter precheck only, do not perform upgrade
+      --without-precheck        skip parameter precheck and proceed directly to upgrade (not recommended)
+      --precheck-output         report format (text, markdown, html, json)
+      --precheck-output-file    write precheck report to a file instead of stdout
 
 Global Flags:
       --ssh-timeout int     SSH connection timeout
   -y, --yes                 Skip all confirmation steps.
-````
+```
 
-For example, to upgrade a cluster to v4.0.0-rc, you need only one command:
+**Upgrade Precheck Integration:**
+
+By default, the upgrade command automatically runs `tidb-upgrade-precheck` to perform compatibility checks before upgrading. The precheck analyzes parameter changes, system variable modifications, and potential risks between the current and target versions.
+
+For example, to upgrade a cluster to v4.0.0-rc:
 
 ```bash
 $ tiup cluster upgrade tidb-test v4.0.0-rc
-````
+```
+
+This will:
+1. Automatically run precheck
+2. Display the precheck report
+3. Ask for user confirmation
+4. Proceed with upgrade if confirmed
+
+To run precheck only without upgrading:
+
+```bash
+$ tiup cluster upgrade tidb-test v4.0.0-rc --precheck
+```
+
+For detailed information about upgrade precheck, see [Upgrade Precheck Integration](./upgrade_precheck.md).
 
 ## Update configuration
 
