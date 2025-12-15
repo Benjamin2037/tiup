@@ -145,9 +145,18 @@ func newUpgradeCmd() *cobra.Command {
 					logger.Warnf("Precheck failed but continuing anyway: %v", err)
 				}
 
-				// If precheck-only mode, exit after precheck
+				// If precheck-only mode, explicitly ask whether to continue upgrade.
+				// Default: stop after precheck unless user confirms (unless -y/--yes).
 				if precheckOnlyFlag {
-					return nil
+					if !skipConfirm {
+						err = tui.PromptForConfirmOrAbortError("Precheck finished. Continue with upgrade?")
+						if err != nil {
+							return err
+						}
+					} else {
+						// --precheck + --yes => precheck only then exit
+						return nil
+					}
 				}
 
 				// Ask for confirmation before proceeding with upgrade
