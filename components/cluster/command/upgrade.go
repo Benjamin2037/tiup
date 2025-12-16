@@ -151,6 +151,12 @@ func newUpgradeCmd() *cobra.Command {
 					if !skipConfirm {
 						err = tui.PromptForConfirmOrAbortError("Precheck finished. Continue with upgrade?")
 						if err != nil {
+							// In precheck-only mode, user cancellation is not an error
+							// Precheck has completed successfully, user just chose not to continue
+							if strings.Contains(err.Error(), "operation_aborted") || strings.Contains(err.Error(), "Operation aborted") {
+								logger.Infof("Precheck completed. Upgrade cancelled by user.")
+								return nil
+							}
 							return err
 						}
 					} else {
