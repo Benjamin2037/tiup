@@ -58,10 +58,10 @@ type tidbSQLCredentials struct {
 
 // highRiskItemOperation represents a single high-risk parameter operation
 type highRiskItemOperation struct {
-	Operation     string        `json:"operation"`      // "add", "modify", or "remove"
-	Component     string        `json:"component"`      // "tidb", "pd", "tikv", "tiflash"
-	Type          string        `json:"type"`           // "config" or "system_variable"
-	Name          string        `json:"name"`           // parameter name
+	Operation     string        `json:"operation"` // "add", "modify", or "remove"
+	Component     string        `json:"component"` // "tidb", "pd", "tikv", "tiflash"
+	Type          string        `json:"type"`      // "config" or "system_variable"
+	Name          string        `json:"name"`      // parameter name
 	Severity      string        `json:"severity,omitempty"`
 	Description   string        `json:"description,omitempty"`
 	CheckModified bool          `json:"check_modified,omitempty"`
@@ -145,8 +145,8 @@ func newUpgradeCmd() *cobra.Command {
 					logger.Warnf("Precheck failed but continuing anyway: %v", err)
 				}
 
-				// If precheck-only mode, explicitly ask whether to continue upgrade.
-				// Default: stop after precheck unless user confirms (unless -y/--yes).
+				// If precheck-only mode, stop after precheck and do not proceed with upgrade
+				// --precheck flag means "only run precheck, do not upgrade"
 				if precheckOnlyFlag {
 					if !skipConfirm {
 						err = tui.PromptForConfirmOrAbortError("Precheck finished. Continue with upgrade?")
@@ -159,8 +159,12 @@ func newUpgradeCmd() *cobra.Command {
 							}
 							return err
 						}
+						// Even if user confirms, --precheck means "precheck only", so we still exit
+						logger.Infof("Precheck completed. Use 'tiup cluster upgrade' without --precheck to proceed with upgrade.")
+						return nil
 					} else {
 						// --precheck + --yes => precheck only then exit
+						logger.Infof("Precheck completed. Use 'tiup cluster upgrade' without --precheck to proceed with upgrade.")
 						return nil
 					}
 				}
@@ -624,4 +628,3 @@ func processHighRiskItemOperation(ctx context.Context, binPath, configFile strin
 	logger.Debugf("Operation %s for %s/%s/%s completed: %s", op.Operation, op.Component, op.Type, op.Name, string(output))
 	return nil
 }
-
