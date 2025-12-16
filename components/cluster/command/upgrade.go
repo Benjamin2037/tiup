@@ -147,26 +147,10 @@ func newUpgradeCmd() *cobra.Command {
 
 				// If precheck-only mode, stop after precheck and do not proceed with upgrade
 				// --precheck flag means "only run precheck, do not upgrade"
+				// No user confirmation needed, just exit after precheck completes
 				if precheckOnlyFlag {
-					if !skipConfirm {
-						err = tui.PromptForConfirmOrAbortError("Precheck finished. Continue with upgrade?")
-						if err != nil {
-							// In precheck-only mode, user cancellation is not an error
-							// Precheck has completed successfully, user just chose not to continue
-							if strings.Contains(err.Error(), "operation_aborted") || strings.Contains(err.Error(), "Operation aborted") {
-								logger.Infof("Precheck completed. Upgrade cancelled by user.")
-								return nil
-							}
-							return err
-						}
-						// Even if user confirms, --precheck means "precheck only", so we still exit
-						logger.Infof("Precheck completed. Use 'tiup cluster upgrade' without --precheck to proceed with upgrade.")
-						return nil
-					} else {
-						// --precheck + --yes => precheck only then exit
-						logger.Infof("Precheck completed. Use 'tiup cluster upgrade' without --precheck to proceed with upgrade.")
-						return nil
-					}
+					logger.Infof("Precheck completed. Use 'tiup cluster upgrade' without --precheck to proceed with upgrade.")
+					return nil
 				}
 
 				// Ask for confirmation before proceeding with upgrade
